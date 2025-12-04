@@ -39,11 +39,11 @@ export class CreateProjectDto {
   criteria: CriterionDto[];
 
   @IsObject()
-  criteriaMatrix: Record<string, number>; // Ex: "idA-idB": 5
+  criteriaMatrix: Record<string, number>;
 
   @IsObject()
-  evaluationValues: Record<string, number>; // Ex: "idCity-idCrit": 5000
+  evaluationValues: Record<string, number>;
 
   @IsObject()
-  criteriaConfig: Record<string, 'BENEFIT' | 'COST'>; // Ex: "idCrit": "COST"
+  criteriaConfig: Record<string, 'BENEFIT' | 'COST'>;
 }

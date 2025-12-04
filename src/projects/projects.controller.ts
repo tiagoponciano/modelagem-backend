@@ -1,20 +1,41 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Delete,
+  Patch,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { AhpService } from './ahp.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
+@ApiTags('projects')
 @Controller('projects')
 export class ProjectsController {
-  // "Banco de dados" em memória (reseta se reiniciar o server)
-  private projectsDb: any[] = []; // <--- Adicione o ": any[]"
+  private projectsDb: any[] = [];
 
   constructor(private readonly ahpService: AhpService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Criar um novo projeto AHP' })
+  @ApiBody({ type: CreateProjectDto })
+  @ApiResponse({ status: 201, description: 'Projeto criado com sucesso' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
   create(@Body() createProjectDto: CreateProjectDto) {
-    // 1. Calcula
     const results = this.ahpService.calculate(createProjectDto);
 
-    // 2. Cria objeto final
     const projectWithId = {
       id: crypto.randomUUID(),
       title: createProjectDto.title,
@@ -24,19 +45,124 @@ export class ProjectsController {
       status: 'Concluído',
       alternativesCount: createProjectDto.cities.length,
       criteriaCount: createProjectDto.criteria.length,
-      // Guarda os dados originais para histórico
       originalData: createProjectDto,
     };
 
-    // 3. Salva
     this.projectsDb.push(projectWithId);
 
     return projectWithId;
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Buscar projeto por ID' })
+  @ApiParam({ name: 'id', description: 'ID do projeto' })
+  @ApiResponse({ status: 200, description: 'Projeto encontrado' })
+  @ApiResponse({ status: 404, description: 'Projeto não encontrado' })
+  findOne(@Param('id') id: string) {
+    const project = this.projectsDb.find((p) => p.id === id);
+
+    if (!project) {
+      throw new NotFoundException('Projeto não encontrado');
+    }
+
+    return {
+      ...project,
+      originalData: project.originalData || {
+        title: project.title,
+        cities: [],
+        criteria: [],
+        criteriaMatrix: {},
+        evaluationValues: {},
+        criteriaConfig: {},
+      },
+    };
+  }
+
   @Get()
+  @ApiOperation({ summary: 'Listar todos os projetos' })
+  @ApiResponse({ status: 200, description: 'Lista de projetos' })
   findAll() {
-    // Retorna lista invertida (mais recentes primeiro)
     return [...this.projectsDb].reverse();
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar projeto' })
+  @ApiParam({ name: 'id', description: 'ID do projeto' })
+  @ApiBody({ type: UpdateProjectDto })
+  @ApiResponse({ status: 200, description: 'Projeto atualizado com sucesso' })
+  @ApiResponse({ status: 404, description: 'Projeto não encontrado' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
+  update(@Param('id') id: string, @Body() updateProjectDto: UpdateProjectDto) {
+    const projectIndex = this.projectsDb.findIndex((p) => p.id === id);
+
+    if (projectIndex === -1) {
+      throw new NotFoundException('Projeto não encontrado');
+    }
+
+    const existingProject = this.projectsDb[projectIndex];
+    const originalData = existingProject.originalData || {};
+
+    const onlyTitleUpdate =
+      updateProjectDto.title &&
+      !updateProjectDto.cities &&
+      !updateProjectDto.criteria &&
+      !updateProjectDto.criteriaMatrix &&
+      !updateProjectDto.evaluationValues &&
+      !updateProjectDto.criteriaConfig;
+
+    if (onlyTitleUpdate) {
+      this.projectsDb[projectIndex] = {
+        ...existingProject,
+        title: updateProjectDto.title,
+        updatedAt: new Date(),
+      };
+
+      return this.projectsDb[projectIndex];
+    }
+
+    const mergedData: CreateProjectDto = {
+      title: updateProjectDto.title || originalData.title,
+      cities: updateProjectDto.cities || originalData.cities,
+      criteria: updateProjectDto.criteria || originalData.criteria,
+      criteriaMatrix:
+        updateProjectDto.criteriaMatrix || originalData.criteriaMatrix,
+      evaluationValues:
+        updateProjectDto.evaluationValues || originalData.evaluationValues,
+      criteriaConfig:
+        updateProjectDto.criteriaConfig || originalData.criteriaConfig,
+    };
+
+    const results = this.ahpService.calculate(mergedData);
+
+    this.projectsDb[projectIndex] = {
+      ...existingProject,
+      title: mergedData.title,
+      results,
+      updatedAt: new Date(),
+      alternativesCount: mergedData.cities.length,
+      criteriaCount: mergedData.criteria.length,
+      originalData: mergedData,
+    };
+
+    return this.projectsDb[projectIndex];
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Deletar projeto' })
+  @ApiParam({ name: 'id', description: 'ID do projeto' })
+  @ApiResponse({ status: 204, description: 'Projeto deletado com sucesso' })
+  @ApiResponse({ status: 404, description: 'Projeto não encontrado' })
+  remove(@Param('id') id: string) {
+    const trimmedId = id.trim();
+    const projectIndex = this.projectsDb.findIndex(
+      (p) => p.id === trimmedId || p.id === id,
+    );
+
+    if (projectIndex === -1) {
+      throw new NotFoundException('Projeto não encontrado');
+    }
+
+    this.projectsDb.splice(projectIndex, 1);
   }
 }
