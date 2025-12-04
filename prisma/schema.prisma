@@ -1,0 +1,28 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider     = "prisma-client-js"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Project {
+  id               String   @id @default(uuid())
+  title            String
+  status           String   @default("Concluído")
+  alternativesCount Int
+  criteriaCount    Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  criteriaWeights  Json
+  ranking          Json
+  matrixRaw        Json
+  originalData     Json
+  
+  @@map("projects")
+}

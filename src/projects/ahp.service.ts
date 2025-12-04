@@ -1,9 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
+
+export interface AhpCalculationResult {
+  criteriaWeights: Record<string, number>;
+  ranking: Array<{
+    id: string;
+    name: string;
+    score: number;
+    formattedScore: string;
+  }>;
+  matrixRaw: number[][];
+}
 
 @Injectable()
 export class AhpService {
-  calculate(data: CreateProjectDto) {
+  calculate(data: CreateProjectDto): AhpCalculationResult {
     const {
       criteria,
       cities,
@@ -11,11 +22,71 @@ export class AhpService {
       evaluationValues,
       criteriaConfig,
     } = data;
+
+    if (!criteria || criteria.length === 0) {
+      throw new BadRequestException('Pelo menos um critério é necessário');
+    }
+
+    if (!cities || cities.length === 0) {
+      throw new BadRequestException('Pelo menos uma cidade é necessária');
+    }
+
+    if (!criteriaMatrix || Object.keys(criteriaMatrix).length === 0) {
+      throw new BadRequestException(
+        'A matriz de comparação de critérios está vazia. É necessário comparar os critérios entre si.',
+      );
+    }
+
+    if (!evaluationValues || Object.keys(evaluationValues).length === 0) {
+      throw new BadRequestException(
+        'Os valores de avaliação estão vazios. É necessário avaliar as cidades para cada critério.',
+      );
+    }
+
+    if (!criteriaConfig || Object.keys(criteriaConfig).length === 0) {
+      throw new BadRequestException(
+        'A configuração dos critérios está vazia. É necessário definir o tipo (BENEFIT ou COST) para cada critério.',
+      );
+    }
+
+    // Verificar se todos os critérios têm configuração
+    const missingConfig = criteria.filter(
+      (c) => !criteriaConfig[c.id],
+    );
+    if (missingConfig.length > 0) {
+      throw new BadRequestException(
+        `Os seguintes critérios não têm configuração definida: ${missingConfig.map((c) => c.name).join(', ')}`,
+      );
+    }
+
     const n = criteria.length;
+    const matrix = this.buildComparisonMatrix(criteria, criteriaMatrix, n);
+    const criteriaWeights = this.calculateCriteriaWeights(matrix, criteria);
+    const normalizedValues = this.normalizeEvaluationValues(
+      criteria,
+      cities,
+      evaluationValues,
+      criteriaConfig,
+    );
+    const ranking = this.calculateRanking(
+      cities,
+      criteria,
+      criteriaWeights,
+      normalizedValues,
+    );
 
-    // --- PASSO 1: CALCULAR PESOS DOS CRITÉRIOS (AHP) ---
+    return {
+      criteriaWeights,
+      ranking,
+      matrixRaw: matrix,
+    };
+  }
 
-    // 1.1 Montar Matriz Quadrada (n x n)
+  private buildComparisonMatrix(
+    criteria: Array<{ id: string; name: string }>,
+    criteriaMatrix: Record<string, number>,
+    n: number,
+  ): number[][] {
     const matrix = Array(n)
       .fill(null)
       .map(() => Array(n).fill(1));
@@ -26,7 +97,6 @@ export class AhpService {
         const idA = criteriaIds[i];
         const idB = criteriaIds[j];
 
-        // Tenta achar "A-B" ou "B-A" no objeto de julgamentos
         let val = criteriaMatrix[`${idA}-${idB}`];
 
         if (val !== undefined) {
@@ -42,17 +112,25 @@ export class AhpService {
       }
     }
 
-    // 1.2 Normalizar a Matriz e Calcular Vetor de Prioridades (Pesos)
+    return matrix;
+  }
+
+  private calculateCriteriaWeights(
+    matrix: number[][],
+    criteria: Array<{ id: string; name: string }>,
+  ): Record<string, number> {
+    const n = matrix.length;
     const columnSums = Array(n).fill(0);
-    // Soma das colunas
+
     for (let j = 0; j < n; j++) {
       for (let i = 0; i < n; i++) {
         columnSums[j] += matrix[i][j];
       }
     }
 
-    // Média das linhas normalizadas = Peso do Critério
     const criteriaWeights: Record<string, number> = {};
+    const criteriaIds = criteria.map((c) => c.id);
+
     for (let i = 0; i < n; i++) {
       let rowSum = 0;
       for (let j = 0; j < n; j++) {
@@ -61,14 +139,20 @@ export class AhpService {
       criteriaWeights[criteriaIds[i]] = rowSum / n;
     }
 
-    // --- PASSO 2: NORMALIZAR DADOS DAS OPÇÕES (WSM) ---
+    return criteriaWeights;
+  }
 
-    const normalizedValues: Record<string, number> = {}; // chave: cityId-critId
+  private normalizeEvaluationValues(
+    criteria: Array<{ id: string; name: string }>,
+    cities: Array<{ id: string; name: string }>,
+    evaluationValues: Record<string, number>,
+    criteriaConfig: Record<string, 'BENEFIT' | 'COST'>,
+  ): Record<string, number> {
+    const normalizedValues: Record<string, number> = {};
 
     criteria.forEach((crit) => {
-      const type = criteriaConfig[crit.id] || 'BENEFIT'; // Padrão: Maior é Melhor
+      const type = criteriaConfig[crit.id] || 'BENEFIT';
 
-      // Pega todos os valores deste critério para achar Min e Max
       const rawValues = cities.map(
         (city) => evaluationValues[`${city.id}-${crit.id}`] || 0,
       );
@@ -80,13 +164,10 @@ export class AhpService {
         let normVal = 0;
 
         if (maxVal === 0 && minVal === 0) {
-          normVal = 0; // Evita divisão por zero se tudo for 0
+          normVal = 0;
         } else if (type === 'BENEFIT') {
-          // Benefício: Valor / Máximo (O melhor vira 1.0)
           normVal = val / maxVal;
         } else {
-          // Custo: Mínimo / Valor (O menor vira 1.0, o maior diminui)
-          // Se valor for 0, assumimos performance perfeita (1.0) para evitar erro
           normVal = val === 0 ? 1 : minVal / val;
         }
 
@@ -94,11 +175,23 @@ export class AhpService {
       });
     });
 
-    // --- PASSO 3: RANKING FINAL ---
+    return normalizedValues;
+  }
+
+  private calculateRanking(
+    cities: Array<{ id: string; name: string }>,
+    criteria: Array<{ id: string; name: string }>,
+    criteriaWeights: Record<string, number>,
+    normalizedValues: Record<string, number>,
+  ): Array<{
+    id: string;
+    name: string;
+    score: number;
+    formattedScore: string;
+  }> {
     const ranking = cities.map((city) => {
       let score = 0;
 
-      // Somatório (Peso do Critério * Valor Normalizado da Cidade)
       criteria.forEach((crit) => {
         const weight = criteriaWeights[crit.id];
         const normValue = normalizedValues[`${city.id}-${crit.id}`];
@@ -108,18 +201,13 @@ export class AhpService {
       return {
         id: city.id,
         name: city.name,
-        score: score * 100, // Pontuação 0-100
+        score: score * 100,
         formattedScore: (score * 100).toFixed(2) + '%',
       };
     });
 
-    // Ordena do vencedor para o perdedor
     ranking.sort((a, b) => b.score - a.score);
 
-    return {
-      criteriaWeights,
-      ranking,
-      matrixRaw: matrix, // Útil para debugar
-    };
+    return ranking;
   }
 }

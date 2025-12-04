@@ -1,98 +1,264 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# AHP Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST para análise de decisão multicritério utilizando o método AHP (Analytic Hierarchy Process). Desenvolvida com NestJS e Prisma, oferece cálculo automático de pesos de critérios, normalização de avaliações e geração de rankings de alternativas.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack Tecnológica
 
-## Description
+- **NestJS 11** - Framework Node.js
+- **Prisma 7** - ORM com type-safety
+- **SQLite** - Banco de dados (configurável para PostgreSQL/MySQL)
+- **TypeScript** - Tipagem estática
+- **Swagger** - Documentação interativa
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Requisitos
 
-## Project setup
+- Node.js 18+
+- npm ou yarn
+
+## Instalação
+
+Clone o repositório e instale as dependências:
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+Configure o arquivo `.env` na raiz do projeto:
+
+```env
+DATABASE_URL="file:./dev.db"
+PORT=3001
+FRONTEND_URL=http://localhost:3000
+```
+
+Execute as migrações e gere o Prisma Client:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npx prisma migrate dev
+npx prisma generate
 ```
 
-## Run tests
+## Executando
+
+Desenvolvimento com hot-reload:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run start:dev
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Produção:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+A API estará disponível em `http://localhost:3001` e a documentação Swagger em `http://localhost:3001/api`.
 
-## Resources
+## Estrutura do Projeto
 
-Check out a few resources that may come in handy when working with NestJS:
+```
+src/
+├── common/
+│   ├── filters/          # Filtros globais de exceção
+│   └── validators/       # Validadores customizados
+├── config/               # Configuração da aplicação
+├── prisma/               # Serviço Prisma
+├── projects/             # Módulo principal
+│   ├── dto/              # Data Transfer Objects
+│   ├── ahp.service.ts    # Lógica de cálculo AHP
+│   ├── projects.controller.ts
+│   ├── projects.repository.ts
+│   └── projects.module.ts
+└── main.ts
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## API Endpoints
 
-## Support
+### POST /projects
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Cria um novo projeto e calcula os resultados AHP automaticamente.
 
-## Stay in touch
+**Request Body:**
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```json
+{
+  "title": "Análise de Localização",
+  "cities": [
+    { "id": "uuid-1", "name": "São Paulo" },
+    { "id": "uuid-2", "name": "Rio de Janeiro" }
+  ],
+  "criteria": [
+    { "id": "uuid-3", "name": "Custo" },
+    { "id": "uuid-4", "name": "Acessibilidade" }
+  ],
+  "criteriaMatrix": {
+    "uuid-3-uuid-4": 3
+  },
+  "evaluationValues": {
+    "uuid-1-uuid-3": 1000,
+    "uuid-1-uuid-4": 8,
+    "uuid-2-uuid-3": 1200,
+    "uuid-2-uuid-4": 9
+  },
+  "criteriaConfig": {
+    "uuid-3": "COST",
+    "uuid-4": "BENEFIT"
+  }
+}
+```
 
-## License
+**Response:**
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```json
+{
+  "id": "project-uuid",
+  "title": "Análise de Localização",
+  "results": {
+    "criteriaWeights": { "uuid-3": 0.25, "uuid-4": 0.75 },
+    "ranking": [
+      {
+        "id": "uuid-2",
+        "name": "Rio de Janeiro",
+        "score": 85.5,
+        "formattedScore": "85.50%"
+      },
+      {
+        "id": "uuid-1",
+        "name": "São Paulo",
+        "score": 72.3,
+        "formattedScore": "72.30%"
+      }
+    ],
+    "matrixRaw": [
+      [1, 0.33],
+      [3, 1]
+    ]
+  },
+  "criteria": [
+    { "id": "uuid-3", "name": "Custo" },
+    { "id": "uuid-4", "name": "Acessibilidade" }
+  ],
+  "createdAt": "2025-12-04T00:00:00.000Z",
+  "updatedAt": "2025-12-04T00:00:00.000Z",
+  "status": "Concluído",
+  "alternativesCount": 2,
+  "criteriaCount": 2
+}
+```
+
+### GET /projects
+
+Retorna lista de todos os projetos ordenados por data de criação (mais recentes primeiro).
+
+### GET /projects/:id
+
+Retorna um projeto específico por ID. Retorna 404 se não encontrado.
+
+### PATCH /projects/:id
+
+Atualiza um projeto existente. Comportamento:
+
+- Se apenas `title` for enviado: atualiza apenas o título sem recalcular resultados
+- Se outros campos forem enviados: mescla com dados existentes e recalcula resultados AHP automaticamente
+
+**Request Body (exemplo):**
+
+```json
+{
+  "title": "Análise Atualizada",
+  "criteriaMatrix": {
+    "uuid-3-uuid-4": 5
+  }
+}
+```
+
+### DELETE /projects/:id
+
+Remove um projeto do banco de dados. Retorna 204 No Content.
+
+## Validação
+
+Todos os endpoints validam os dados de entrada:
+
+- Campos obrigatórios
+- Tipos de dados
+- Tamanhos mínimos (arrays, strings)
+- Objetos não vazios (criteriaMatrix, evaluationValues, criteriaConfig)
+- Configuração completa de critérios
+
+Erros de validação retornam status 400 com array de mensagens específicas.
+
+## Cálculo AHP
+
+O serviço `AhpService` implementa o método AHP completo:
+
+1. **Matriz de Comparação**: Constrói matriz de comparação entre critérios
+2. **Pesos dos Critérios**: Calcula pesos normalizados usando média geométrica
+3. **Normalização**: Normaliza valores de avaliação (BENEFIT: max, COST: min)
+4. **Ranking**: Calcula score final ponderado e ordena alternativas
+
+## Banco de Dados
+
+O projeto usa SQLite por padrão. Para migrar para outro banco:
+
+1. Altere o `provider` em `prisma/schema.prisma`
+2. Atualize `DATABASE_URL` no `.env`
+3. Execute `npx prisma migrate dev`
+
+### Comandos Úteis
+
+```bash
+# Criar nova migração
+npx prisma migrate dev --name nome_da_migracao
+
+# Visualizar dados
+npx prisma studio
+
+# Resetar banco (desenvolvimento)
+npx prisma migrate reset
+```
+
+## Desenvolvimento
+
+### Scripts Disponíveis
+
+- `npm run build` - Compila TypeScript
+- `npm run start:dev` - Desenvolvimento com watch
+- `npm run start:prod` - Produção
+- `npm run lint` - Executa ESLint
+- `npm run format` - Formata código com Prettier
+- `npm run test` - Testes unitários
+- `npm run test:e2e` - Testes end-to-end
+
+### Arquitetura
+
+O projeto segue padrões do NestJS:
+
+- **Controllers**: Gerenciam requisições HTTP
+- **Services**: Contêm lógica de negócio
+- **Repositories**: Abstraem acesso ao banco
+- **DTOs**: Definem contratos de entrada/saída
+- **Filters**: Tratam exceções globalmente
+
+## Tratamento de Erros
+
+Exceções são capturadas pelo `HttpExceptionFilter` que:
+
+- Padroniza formato de resposta
+- Registra erros em logs
+- Retorna mensagens descritivas
+- Inclui detalhes de validação quando aplicável
+
+## Documentação
+
+A documentação completa está disponível via Swagger em `/api` quando o servidor estiver rodando. Inclui:
+
+- Descrição de todos os endpoints
+- Schemas de request/response
+- Exemplos interativos
+- Teste direto dos endpoints
+
+## Licença
+
+UNLICENSED
