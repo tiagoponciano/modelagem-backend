@@ -24,6 +24,17 @@ class CriterionDto {
   name: string;
 }
 
+class SubCriterionDto {
+  @IsString()
+  id: string;
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  criterionId: string;
+}
+
 export class CreateProjectDto {
   @IsString()
   title: string;
@@ -38,12 +49,24 @@ export class CreateProjectDto {
   @Type(() => CriterionDto)
   criteria: CriterionDto[];
 
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SubCriterionDto)
+  @IsOptional()
+  subCriteria?: SubCriterionDto[];
+
   @IsObject()
   criteriaMatrix: Record<string, number>;
 
   @IsObject()
-  evaluationValues: Record<string, number>;
+  @IsOptional()
+  evaluationValues?: Record<string, number>;
 
   @IsObject()
-  criteriaConfig: Record<string, 'BENEFIT' | 'COST'>;
+  @IsOptional()
+  criteriaConfig?: Record<string, 'BENEFIT' | 'COST'>;
+
+  @IsObject()
+  @IsOptional()
+  criterionFieldValues?: Record<string, Record<string, number | string>>;
 }

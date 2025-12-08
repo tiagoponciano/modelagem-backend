@@ -28,13 +28,77 @@ export class ProjectsController {
 
   constructor(private readonly ahpService: AhpService) {}
 
+  @Post('calculate')
+  @ApiOperation({
+    summary: 'Calcular resultados AHP sem salvar (para atualização em tempo real)',
+  })
+  @ApiBody({ type: CreateProjectDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Cálculos realizados com sucesso',
+  })
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
+  calculate(@Body() createProjectDto: CreateProjectDto) {
+    const calculationResults = this.ahpService.calculate(createProjectDto);
+
+    // Formatar resultados para compatibilidade com o frontend
+    const results = {
+      criteriaWeights: calculationResults.criteriaPriorities.priorities,
+      ranking: calculationResults.ranking,
+      matrixRaw: calculationResults.criteriaPriorities.matrix,
+      lambdaMax: Number(
+        calculationResults.criteriaConsistency.lambda.toFixed(5),
+      ),
+      consistencyIndex: Number(
+        calculationResults.criteriaConsistency.CI.toFixed(5),
+      ),
+      consistencyRatio: Number(
+        calculationResults.criteriaConsistency.CR.toFixed(5),
+      ),
+      randomIndex: calculationResults.criteriaConsistency.RI,
+      isConsistent:
+        calculationResults.criteriaConsistency.CR < 0.1,
+      eigenvector: calculationResults.criteriaPriorities.ids.map(
+        (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
+      ),
+      // Novos campos adicionais com todos os cálculos detalhados
+      calculationResults,
+    };
+
+    return results;
+  }
+
   @Post()
   @ApiOperation({ summary: 'Criar um novo projeto AHP' })
   @ApiBody({ type: CreateProjectDto })
   @ApiResponse({ status: 201, description: 'Projeto criado com sucesso' })
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   create(@Body() createProjectDto: CreateProjectDto) {
-    const results = this.ahpService.calculate(createProjectDto);
+    const calculationResults = this.ahpService.calculate(createProjectDto);
+
+    // Formatar resultados para compatibilidade com o frontend
+    const results = {
+      criteriaWeights: calculationResults.criteriaPriorities.priorities,
+      ranking: calculationResults.ranking,
+      matrixRaw: calculationResults.criteriaPriorities.matrix,
+      lambdaMax: Number(
+        calculationResults.criteriaConsistency.lambda.toFixed(5),
+      ),
+      consistencyIndex: Number(
+        calculationResults.criteriaConsistency.CI.toFixed(5),
+      ),
+      consistencyRatio: Number(
+        calculationResults.criteriaConsistency.CR.toFixed(5),
+      ),
+      randomIndex: calculationResults.criteriaConsistency.RI,
+      isConsistent:
+        calculationResults.criteriaConsistency.CR < 0.1,
+      eigenvector: calculationResults.criteriaPriorities.ids.map(
+        (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
+      ),
+      // Novos campos adicionais
+      calculationResults,
+    };
 
     const projectWithId = {
       id: crypto.randomUUID(),
@@ -124,15 +188,44 @@ export class ProjectsController {
       title: updateProjectDto.title || originalData.title,
       cities: updateProjectDto.cities || originalData.cities,
       criteria: updateProjectDto.criteria || originalData.criteria,
+      subCriteria:
+        updateProjectDto.subCriteria || originalData.subCriteria,
       criteriaMatrix:
         updateProjectDto.criteriaMatrix || originalData.criteriaMatrix,
       evaluationValues:
         updateProjectDto.evaluationValues || originalData.evaluationValues,
       criteriaConfig:
         updateProjectDto.criteriaConfig || originalData.criteriaConfig,
+      criterionFieldValues:
+        updateProjectDto.criterionFieldValues ||
+        originalData.criterionFieldValues,
     };
 
-    const results = this.ahpService.calculate(mergedData);
+    const calculationResults = this.ahpService.calculate(mergedData);
+
+    // Formatar resultados para compatibilidade com o frontend
+    const results = {
+      criteriaWeights: calculationResults.criteriaPriorities.priorities,
+      ranking: calculationResults.ranking,
+      matrixRaw: calculationResults.criteriaPriorities.matrix,
+      lambdaMax: Number(
+        calculationResults.criteriaConsistency.lambda.toFixed(5),
+      ),
+      consistencyIndex: Number(
+        calculationResults.criteriaConsistency.CI.toFixed(5),
+      ),
+      consistencyRatio: Number(
+        calculationResults.criteriaConsistency.CR.toFixed(5),
+      ),
+      randomIndex: calculationResults.criteriaConsistency.RI,
+      isConsistent:
+        calculationResults.criteriaConsistency.CR < 0.1,
+      eigenvector: calculationResults.criteriaPriorities.ids.map(
+        (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
+      ),
+      // Novos campos adicionais
+      calculationResults,
+    };
 
     this.projectsDb[projectIndex] = {
       ...existingProject,
