@@ -40,13 +40,11 @@ async function bootstrap() {
   return expressApp;
 }
 
-// Para Vercel serverless - usar module.exports para compatibilidade
 module.exports = async function handler(req: any, res: any) {
   const app = await bootstrap();
   app(req, res);
 };
 
-// Para desenvolvimento local
 if (require.main === module) {
   (async () => {
     const app = await NestFactory.create(AppModule);

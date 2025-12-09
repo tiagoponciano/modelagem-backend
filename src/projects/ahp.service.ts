@@ -53,9 +53,6 @@ export class AhpService {
     10: 1.49,
   };
 
-  /**
-   * Constrói uma matriz AHP a partir de valores armazenados
-   */
   private buildAhpMatrix(
     ids: string[],
     getValue: (idA: string, idB: string) => number | null,
@@ -92,9 +89,6 @@ export class AhpService {
     return { matrix, ids };
   }
 
-  /**
-   * Calcula as prioridades usando o método de normalização por colunas
-   */
   private calculatePriorities(
     matrixResult: AhpMatrixResult,
   ): AhpPrioritiesResult {
@@ -110,7 +104,6 @@ export class AhpService {
       };
     }
 
-    // Soma das colunas
     const columnSums: number[] = new Array(n).fill(0);
     for (let j = 0; j < n; j++) {
       for (let i = 0; i < n; i++) {
@@ -118,7 +111,6 @@ export class AhpService {
       }
     }
 
-    // Normalização
     const normalizedMatrix: number[][] = [];
     for (let i = 0; i < n; i++) {
       normalizedMatrix.push([]);
@@ -128,7 +120,6 @@ export class AhpService {
       }
     }
 
-    // Prioridades (média das linhas)
     const priorities: Record<string, number> = {};
     for (let i = 0; i < n; i++) {
       let sum = 0;
@@ -146,9 +137,6 @@ export class AhpService {
     };
   }
 
-  /**
-   * Calcula métricas de consistência
-   */
   private calculateConsistencyMetrics(
     matrixResult: AhpMatrixResult,
     priorities: Record<string, number>,
@@ -167,7 +155,6 @@ export class AhpService {
       };
     }
 
-    // Matriz ponderada
     const weightedMatrix: number[][] = [];
     for (let i = 0; i < n; i++) {
       weightedMatrix.push([]);
@@ -177,7 +164,6 @@ export class AhpService {
       }
     }
 
-    // Somas ponderadas
     const weightedSums: number[] = [];
     for (let i = 0; i < n; i++) {
       let sum = 0;
@@ -188,20 +174,14 @@ export class AhpService {
       weightedSums.push(priority > 0 ? sum / priority : 0);
     }
 
-    // Lambda (autovalor máximo)
     let lambda = 0;
     for (let i = 0; i < n; i++) {
       lambda += weightedSums[i];
     }
     lambda = lambda / n;
 
-    // CI (Consistency Index)
     const CI = (lambda - n) / (n - 1);
-
-    // RI (Random Index)
     const RI = this.RI_TABLE[n] || 1.12;
-
-    // CR (Consistency Ratio)
     const CR = RI > 0 ? CI / RI : 0;
 
     return {
@@ -214,9 +194,6 @@ export class AhpService {
     };
   }
 
-  /**
-   * Calcula prioridades dos critérios
-   */
   private calculateCriteriaPriorities(
     data: CreateProjectDto,
   ): AhpPrioritiesResult {
@@ -242,9 +219,6 @@ export class AhpService {
     return this.calculatePriorities(matrixResult);
   }
 
-  /**
-   * Calcula prioridades de subcritérios (comparação entre cidades)
-   */
   private calculateSubCriterionPriorities(
     data: CreateProjectDto,
     subCriterionId: string,
@@ -271,9 +245,6 @@ export class AhpService {
     return this.calculatePriorities(matrixResult);
   }
 
-  /**
-   * Calcula pesos entre subcritérios (AHP local do critério)
-   */
   private calculateSubWeightPriorities(
     data: CreateProjectDto,
     criterionId: string,
@@ -310,9 +281,6 @@ export class AhpService {
     return this.calculatePriorities(matrixResult);
   }
 
-  /**
-   * Calcula prioridades baseadas em distâncias
-   */
   private calculateDistancePriorities(
     data: CreateProjectDto,
     portId: string,
@@ -365,10 +333,6 @@ export class AhpService {
     return prioritiesResult.priorities;
   }
 
-  /**
-   * Calcula médias de valores numéricos para uma cidade em um critério específico
-   * Genérico: funciona para qualquer critério que tenha campos numéricos
-   */
   private calculateCityFieldAverages(
     data: CreateProjectDto,
     cityId: string,
@@ -376,7 +340,6 @@ export class AhpService {
   ): { aluguel: number; m2: number; pricePerM2: number } {
     const { criterionFieldValues } = data;
 
-    // Usar apenas o criterionId fornecido (genérico, sem hardcoding de nomes)
     const key = `${cityId}-${criterionId}`;
 
     const fieldValues: Record<string, number | string> =
@@ -384,7 +347,6 @@ export class AhpService {
 
     const warehouses: Array<{ id: string; aluguel: number; m2: number }> = [];
 
-    // Extrair valores de galpões (formato: warehouseId-aluguel, warehouseId-m2)
     Object.keys(fieldValues).forEach((fieldKey) => {
       if (fieldKey.endsWith('-aluguel') || fieldKey.endsWith('-m2')) {
         const parts = fieldKey.split('-');
@@ -438,10 +400,6 @@ export class AhpService {
     };
   }
 
-  /**
-   * Calcula prioridades AHP para um critério específico comparando cidades
-   * Genérico: funciona para qualquer critério usando criterionFieldValues
-   */
   private calculateCriterionCityPriorities(
     data: CreateProjectDto,
     criterionId: string,
@@ -449,11 +407,9 @@ export class AhpService {
     const { cities, criterionFieldValues } = data;
 
     const getValue = (cityAId: string, cityBId: string): number | null => {
-      // Usar apenas o criterionId fornecido (genérico)
       const key = `${cityAId}-${criterionId}`;
       const fieldValues = criterionFieldValues?.[key];
       if (fieldValues) {
-        // Buscar valor AHP genérico (formato: ahp-{criterionId}-{cityBId} ou ahp-{cityBId})
         const value =
           fieldValues[`ahp-${criterionId}-${cityBId}`] ||
           fieldValues[`ahp-${cityBId}`] ||
@@ -470,9 +426,6 @@ export class AhpService {
     return this.calculatePriorities(matrixResult);
   }
 
-  /**
-   * Calcula score de uma cidade para um critério
-   */
   private calculateCityCriterionScore(
     data: CreateProjectDto,
     criterionId: string,
@@ -502,11 +455,7 @@ export class AhpService {
     return total;
   }
 
-  /**
-   * Calcula todos os resultados
-   */
   calculate(data: CreateProjectDto): CalculationResult {
-    // Prioridades dos critérios
     const criteriaPriorities = this.calculateCriteriaPriorities(data);
     const criteriaConsistency = this.calculateConsistencyMetrics(
       {
@@ -516,7 +465,6 @@ export class AhpService {
       criteriaPriorities.priorities,
     );
 
-    // Prioridades de subcritérios
     const subCriterionPriorities: Record<string, AhpPrioritiesResult> = {};
     const subCriterionConsistency: Record<string, ConsistencyMetrics> = {};
 
@@ -536,7 +484,6 @@ export class AhpService {
       });
     }
 
-    // Pesos entre subcritérios
     const subWeightPriorities: Record<string, AhpPrioritiesResult> = {};
     data.criteria.forEach((criterion) => {
       const priorities = this.calculateSubWeightPriorities(data, criterion.id);
@@ -545,7 +492,6 @@ export class AhpService {
       }
     });
 
-    // Scores de cidades por critério
     const cityCriterionScores: Record<string, Record<string, number>> = {};
     data.cities.forEach((city) => {
       cityCriterionScores[city.id] = {};
@@ -555,7 +501,6 @@ export class AhpService {
       });
     });
 
-    // Scores finais
     const finalScores: Record<string, number> = {};
     data.cities.forEach((city) => {
       let total = 0;
@@ -567,7 +512,6 @@ export class AhpService {
       finalScores[city.id] = total;
     });
 
-    // Ranking
     const ranking = data.cities
       .map((city) => ({
         id: city.id,
@@ -589,10 +533,6 @@ export class AhpService {
     };
   }
 
-  /**
-   * Calcula prioridades de um critério específico (método público)
-   * Genérico: funciona para qualquer critério
-   */
   getCriterionCityPriorities(
     data: CreateProjectDto,
     criterionId: string,
@@ -600,9 +540,6 @@ export class AhpService {
     return this.calculateCriterionCityPriorities(data, criterionId);
   }
 
-  /**
-   * Calcula prioridades de distância (método público)
-   */
   getDistancePriorities(
     data: CreateProjectDto,
     portId: string,
@@ -610,10 +547,6 @@ export class AhpService {
     return this.calculateDistancePriorities(data, portId);
   }
 
-  /**
-   * Calcula médias de campos numéricos de uma cidade para um critério (método público)
-   * Genérico: funciona para qualquer critério
-   */
   getCityFieldAverages(
     data: CreateProjectDto,
     cityId: string,

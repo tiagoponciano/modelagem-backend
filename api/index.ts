@@ -22,7 +22,6 @@ async function bootstrap() {
     },
   );
 
-  // Configurar CORS antes de outras configurações
   app.enableCors({
     origin: true,
     credentials: true,
@@ -39,7 +38,6 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   
-  // Configurar Swagger com opções para Vercel
   SwaggerModule.setup('docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
@@ -56,7 +54,6 @@ async function bootstrap() {
   return expressApp;
 }
 
-// Usar module.exports para compatibilidade com Vercel
 module.exports = async function handler(req: any, res: any) {
   const app = await bootstrap();
   app(req, res);

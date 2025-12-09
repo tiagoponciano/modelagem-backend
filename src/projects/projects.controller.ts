@@ -32,8 +32,7 @@ export class ProjectsController {
 
   @Post('calculate')
   @ApiOperation({
-    summary:
-      'Calcular resultados AHP sem salvar (para atualização em tempo real)',
+    summary: 'Calcular resultados AHP sem salvar',
   })
   @ApiBody({ type: CreateProjectDto })
   @ApiResponse({
@@ -58,7 +57,6 @@ export class ProjectsController {
   async create(@Body() createProjectDto: CreateProjectDto) {
     const project = await this.projectsService.create(createProjectDto);
 
-    // Formata a resposta com originalData
     return {
       ...project,
       originalData: {
@@ -95,7 +93,6 @@ export class ProjectsController {
   async findAll() {
     const projects = await this.projectsService.findAll();
 
-    // Formata cada projeto com originalData
     return projects.map((project) => ({
       ...project,
       originalData: {
@@ -128,7 +125,6 @@ export class ProjectsController {
       throw new NotFoundException('Projeto não encontrado');
     }
 
-    // Formata a resposta com originalData
     return {
       ...project,
       originalData: {
@@ -160,7 +156,7 @@ export class ProjectsController {
 
   @Post('draft')
   @ApiOperation({
-    summary: 'Salvar dados parciais (auto-save) - Não recalcula resultados',
+    summary: 'Salvar dados parciais',
   })
   @ApiBody({ type: UpdateProjectDto })
   @ApiResponse({
@@ -176,7 +172,6 @@ export class ProjectsController {
       throw new NotFoundException('Projeto não encontrado');
     }
 
-    // Formata a resposta com originalData
     return {
       ...project,
       originalData: {
@@ -194,7 +189,7 @@ export class ProjectsController {
 
   @Patch(':id/draft')
   @ApiOperation({
-    summary: 'Atualizar dados parciais de um projeto existente (auto-save)',
+    summary: 'Atualizar dados parciais de um projeto existente',
   })
   @ApiParam({ name: 'id', description: 'ID do projeto' })
   @ApiBody({ type: UpdateProjectDto })
@@ -213,7 +208,6 @@ export class ProjectsController {
       throw new NotFoundException('Projeto não encontrado');
     }
 
-    // Formata a resposta com originalData
     return {
       ...project,
       originalData: {
@@ -231,9 +225,7 @@ export class ProjectsController {
 
   @Post(':id/finalize')
   @ApiOperation({
-    summary: 'Finalizar projeto - Calcula e salva resultados completos',
-    description:
-      'Este endpoint recalcula todos os resultados AHP e marca o projeto como "Concluído". Use este endpoint ao clicar em "Atualizar e Calcular" na página final.',
+    summary: 'Finalizar projeto',
   })
   @ApiParam({ name: 'id', description: 'ID do projeto' })
   @ApiBody({ type: UpdateProjectDto })
@@ -246,20 +238,17 @@ export class ProjectsController {
     @Param('id') id: string,
     @Body() updateProjectDto: UpdateProjectDto,
   ) {
-    // Força status como "Concluído" ao finalizar
     const finalizeData = {
       ...updateProjectDto,
       status: 'Concluído' as const,
     };
 
-    // Usa o método update que calcula e salva resultados
     const project = await this.projectsService.update(id, finalizeData);
 
     if (!project) {
       throw new NotFoundException('Projeto não encontrado');
     }
 
-    // Formata a resposta com originalData
     return {
       ...project,
       originalData: {
