@@ -43,30 +43,10 @@ export class ProjectsController {
   @ApiResponse({ status: 400, description: 'Dados inválidos' })
   calculate(@Body() createProjectDto: CreateProjectDto) {
     const calculationResults = this.ahpService.calculate(createProjectDto);
-
-    // Formatar resultados para compatibilidade com o frontend
-    const results = {
-      criteriaWeights: calculationResults.criteriaPriorities.priorities,
-      ranking: calculationResults.ranking,
-      matrixRaw: calculationResults.criteriaPriorities.matrix,
-      lambdaMax: Number(
-        calculationResults.criteriaConsistency.lambda.toFixed(5),
-      ),
-      consistencyIndex: Number(
-        calculationResults.criteriaConsistency.CI.toFixed(5),
-      ),
-      consistencyRatio: Number(
-        calculationResults.criteriaConsistency.CR.toFixed(5),
-      ),
-      randomIndex: calculationResults.criteriaConsistency.RI,
-      isConsistent: calculationResults.criteriaConsistency.CR < 0.1,
-      eigenvector: calculationResults.criteriaPriorities.ids.map(
-        (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
-      ),
-      // Novos campos adicionais com todos os cálculos detalhados
+    const results = this.projectsService.formatResults(
       calculationResults,
-    };
-
+      createProjectDto,
+    );
     return results;
   }
 

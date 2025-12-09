@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { AhpService } from './ahp.service';
+import { CalculationResult } from './ahp.service';
 
 @Injectable()
 export class ProjectsService {
@@ -10,18 +11,38 @@ export class ProjectsService {
     private ahpService: AhpService,
   ) {}
 
-  async create(data: CreateProjectDto) {
-    // Calcula os resultados AHP
-    const calculationResults = this.ahpService.calculate(data);
+  /**
+   * Formata todos os resultados em uma estrutura única para o frontend,
+   * incluindo a tabela ponderada já pronta (sem necessidade de cálculos no cliente).
+   */
+  formatResults(
+    calculationResults: CalculationResult,
+    data: CreateProjectDto,
+  ) {
+    const criteriaWeights = calculationResults.criteriaPriorities.priorities;
+    const cityCriterionRaw = calculationResults.cityCriterionScores;
 
-    // Formata resultados para compatibilidade com o frontend
-    const results = {
-      criteriaWeights: calculationResults.criteriaPriorities.priorities,
+    const weighted: Record<string, Record<string, number>> = {};
+    Object.keys(cityCriterionRaw).forEach((cityId) => {
+      weighted[cityId] = {};
+      data.criteria.forEach((criterion) => {
+        const weight = criteriaWeights[criterion.id] || 0;
+        const raw = cityCriterionRaw[cityId]?.[criterion.id] || 0;
+        weighted[cityId][criterion.id] = raw * weight;
+      });
+    });
+
+    const finalScores = calculationResults.finalScores;
+    const finalScoresPercent: Record<string, string> = {};
+    Object.keys(finalScores).forEach((cityId) => {
+      finalScoresPercent[cityId] = `${(finalScores[cityId] * 100).toFixed(2)}%`;
+    });
+
+    return {
+      criteriaWeights,
       ranking: calculationResults.ranking,
       matrixRaw: calculationResults.criteriaPriorities.matrix,
-      lambdaMax: Number(
-        calculationResults.criteriaConsistency.lambda.toFixed(5),
-      ),
+      lambdaMax: Number(calculationResults.criteriaConsistency.lambda.toFixed(5)),
       consistencyIndex: Number(
         calculationResults.criteriaConsistency.CI.toFixed(5),
       ),
@@ -34,7 +55,22 @@ export class ProjectsService {
         (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
       ),
       calculationResults,
+      // Tabelas para o frontend:
+      table: {
+        raw: cityCriterionRaw, // prioridades por critério (cada coluna soma 1)
+        weighted, // prioridades multiplicadas pelos pesos dos critérios
+        finalScores,
+        finalScoresPercent,
+      },
     };
+  }
+
+  async create(data: CreateProjectDto) {
+    // Calcula os resultados AHP
+    const calculationResults = this.ahpService.calculate(data);
+
+    // Formata resultados para compatibilidade com o frontend
+    const results = this.formatResults(calculationResults, data);
 
     // Transforma CreateProjectDto para o formato do Prisma
     return this.prisma.project.create({
@@ -136,26 +172,7 @@ export class ProjectsService {
     const calculationResults = this.ahpService.calculate(mergedData);
 
     // Formata resultados
-    const results = {
-      criteriaWeights: calculationResults.criteriaPriorities.priorities,
-      ranking: calculationResults.ranking,
-      matrixRaw: calculationResults.criteriaPriorities.matrix,
-      lambdaMax: Number(
-        calculationResults.criteriaConsistency.lambda.toFixed(5),
-      ),
-      consistencyIndex: Number(
-        calculationResults.criteriaConsistency.CI.toFixed(5),
-      ),
-      consistencyRatio: Number(
-        calculationResults.criteriaConsistency.CR.toFixed(5),
-      ),
-      randomIndex: calculationResults.criteriaConsistency.RI,
-      isConsistent: calculationResults.criteriaConsistency.CR < 0.1,
-      eigenvector: calculationResults.criteriaPriorities.ids.map(
-        (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
-      ),
-      calculationResults,
-    };
+    const results = this.formatResults(calculationResults, mergedData);
 
     return this.prisma.project.update({
       where: { id },
