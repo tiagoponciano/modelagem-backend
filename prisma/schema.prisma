@@ -19,8 +19,8 @@ model Project {
   evaluationValues  Json?    // Record<string, number> - Valores de avaliação
   criteriaConfig    Json?    // Record<string, 'BENEFIT' | 'COST'> - Configuração de critérios
   criterionFieldValues Json? // Record<string, Record<string, number | string>> - Valores de campos de critérios
-  results           Json     // Resultados dos cálculos AHP
-  status            String   @default("Concluído")
+  results           Json?    // Resultados dos cálculos AHP (opcional para drafts)
+  status            String   @default("Em progresso") // "Em progresso" ou "Concluído"
   alternativesCount Int      // Número de cidades/alternativas
   criteriaCount     Int      // Número de critérios
   createdAt         DateTime @default(now())

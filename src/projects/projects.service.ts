@@ -50,7 +50,7 @@ export class ProjectsService {
         results: results as any,
         alternativesCount: data.cities.length,
         criteriaCount: data.criteria.length,
-        status: 'Concluído',
+        status: 'Concluído', // Quando cria com todos os dados, marca como concluído
       },
     });
   }
@@ -181,5 +181,103 @@ export class ProjectsService {
 
   calculate(data: CreateProjectDto) {
     return this.ahpService.calculate(data);
+  }
+
+  /**
+   * Salva dados parciais (draft) sem recalcular resultados AHP
+   * Usado para auto-save durante o preenchimento do formulário
+   */
+  async saveDraft(id: string, data: Partial<CreateProjectDto>) {
+    const existingProject = await this.prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!existingProject) {
+      return null;
+    }
+
+    // Merge com dados existentes
+    const originalData = {
+      title: existingProject.title,
+      cities: existingProject.cities as any,
+      criteria: existingProject.criteria as any,
+      subCriteria: existingProject.subCriteria as any,
+      criteriaMatrix: existingProject.criteriaMatrix as any,
+      evaluationValues: existingProject.evaluationValues as any,
+      criteriaConfig: existingProject.criteriaConfig as any,
+      criterionFieldValues: existingProject.criterionFieldValues as any,
+    };
+
+    // Merge apenas os campos fornecidos
+    const mergedData = {
+      title: data.title ?? originalData.title,
+      cities: data.cities ?? originalData.cities,
+      criteria: data.criteria ?? originalData.criteria,
+      subCriteria: data.subCriteria ?? originalData.subCriteria,
+      criteriaMatrix: data.criteriaMatrix ?? originalData.criteriaMatrix,
+      evaluationValues: data.evaluationValues ?? originalData.evaluationValues,
+      criteriaConfig: data.criteriaConfig ?? originalData.criteriaConfig,
+      criterionFieldValues:
+        data.criterionFieldValues ?? originalData.criterionFieldValues,
+    };
+
+    // Atualiza apenas os dados, sem recalcular resultados
+    // Mantém os resultados antigos ou vazios se ainda não foram calculados
+    return this.prisma.project.update({
+      where: { id },
+      data: {
+        title: mergedData.title,
+        cities: mergedData.cities as any,
+        criteria: mergedData.criteria as any,
+        subCriteria: mergedData.subCriteria as any,
+        criteriaMatrix: mergedData.criteriaMatrix as any,
+        evaluationValues: mergedData.evaluationValues as any,
+        criteriaConfig: mergedData.criteriaConfig as any,
+        criterionFieldValues: mergedData.criterionFieldValues as any,
+        alternativesCount: mergedData.cities?.length ?? existingProject.alternativesCount,
+        criteriaCount: mergedData.criteria?.length ?? existingProject.criteriaCount,
+        status: 'Em progresso', // Marca como em progresso quando salva parcialmente
+      },
+    });
+  }
+
+  /**
+   * Cria ou atualiza um projeto com dados parciais
+   * Se não existir, cria um novo. Se existir, atualiza.
+   */
+  async saveOrUpdateDraft(
+    id: string | undefined,
+    data: Partial<CreateProjectDto>,
+  ) {
+    if (id) {
+      // Se tem ID, atualiza projeto existente
+      return this.saveDraft(id, data);
+    } else {
+      // Se não tem ID, cria um novo projeto com status "Em progresso"
+      // Para criar, precisa pelo menos de title, cities e criteria
+      if (!data.title || !data.cities || !data.criteria) {
+        throw new Error(
+          'Para criar um novo projeto, é necessário title, cities e criteria',
+        );
+      }
+
+      // Cria com dados mínimos, resultados vazios
+      return this.prisma.project.create({
+        data: {
+          title: data.title,
+          cities: (data.cities as any) || [],
+          criteria: (data.criteria as any) || [],
+          subCriteria: (data.subCriteria as any) || null,
+          criteriaMatrix: (data.criteriaMatrix as any) || {},
+          evaluationValues: (data.evaluationValues as any) || null,
+          criteriaConfig: (data.criteriaConfig as any) || null,
+          criterionFieldValues: (data.criterionFieldValues as any) || null,
+          results: {} as any, // Resultados vazios até calcular
+          alternativesCount: data.cities?.length || 0,
+          criteriaCount: data.criteria?.length || 0,
+          status: 'Em progresso',
+        },
+      });
+    }
   }
 }

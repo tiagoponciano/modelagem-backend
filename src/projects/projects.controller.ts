@@ -177,4 +177,75 @@ export class ProjectsController {
       throw new NotFoundException('Projeto não encontrado');
     }
   }
+
+  @Post('draft')
+  @ApiOperation({
+    summary: 'Salvar dados parciais (auto-save) - Não recalcula resultados',
+  })
+  @ApiBody({ type: UpdateProjectDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Dados salvos parcialmente com sucesso',
+  })
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
+  async saveDraft(@Body() body: UpdateProjectDto & { id?: string }) {
+    const { id, ...data } = body;
+    const project = await this.projectsService.saveOrUpdateDraft(id, data);
+
+    if (!project) {
+      throw new NotFoundException('Projeto não encontrado');
+    }
+
+    // Formata a resposta com originalData
+    return {
+      ...project,
+      originalData: {
+        title: project.title,
+        cities: project.cities,
+        criteria: project.criteria,
+        subCriteria: project.subCriteria,
+        criteriaMatrix: project.criteriaMatrix,
+        evaluationValues: project.evaluationValues,
+        criteriaConfig: project.criteriaConfig,
+        criterionFieldValues: project.criterionFieldValues,
+      },
+    };
+  }
+
+  @Patch(':id/draft')
+  @ApiOperation({
+    summary: 'Atualizar dados parciais de um projeto existente (auto-save)',
+  })
+  @ApiParam({ name: 'id', description: 'ID do projeto' })
+  @ApiBody({ type: UpdateProjectDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Dados atualizados parcialmente com sucesso',
+  })
+  @ApiResponse({ status: 404, description: 'Projeto não encontrado' })
+  async updateDraft(
+    @Param('id') id: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
+    const project = await this.projectsService.saveDraft(id, updateProjectDto);
+
+    if (!project) {
+      throw new NotFoundException('Projeto não encontrado');
+    }
+
+    // Formata a resposta com originalData
+    return {
+      ...project,
+      originalData: {
+        title: project.title,
+        cities: project.cities,
+        criteria: project.criteria,
+        subCriteria: project.subCriteria,
+        criteriaMatrix: project.criteriaMatrix,
+        evaluationValues: project.evaluationValues,
+        criteriaConfig: project.criteriaConfig,
+        criterionFieldValues: project.criterionFieldValues,
+      },
+    };
+  }
 }
