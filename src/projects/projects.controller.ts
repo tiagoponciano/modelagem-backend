@@ -30,7 +30,8 @@ export class ProjectsController {
 
   @Post('calculate')
   @ApiOperation({
-    summary: 'Calcular resultados AHP sem salvar (para atualização em tempo real)',
+    summary:
+      'Calcular resultados AHP sem salvar (para atualização em tempo real)',
   })
   @ApiBody({ type: CreateProjectDto })
   @ApiResponse({
@@ -56,8 +57,7 @@ export class ProjectsController {
         calculationResults.criteriaConsistency.CR.toFixed(5),
       ),
       randomIndex: calculationResults.criteriaConsistency.RI,
-      isConsistent:
-        calculationResults.criteriaConsistency.CR < 0.1,
+      isConsistent: calculationResults.criteriaConsistency.CR < 0.1,
       eigenvector: calculationResults.criteriaPriorities.ids.map(
         (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
       ),
@@ -91,8 +91,7 @@ export class ProjectsController {
         calculationResults.criteriaConsistency.CR.toFixed(5),
       ),
       randomIndex: calculationResults.criteriaConsistency.RI,
-      isConsistent:
-        calculationResults.criteriaConsistency.CR < 0.1,
+      isConsistent: calculationResults.criteriaConsistency.CR < 0.1,
       eigenvector: calculationResults.criteriaPriorities.ids.map(
         (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
       ),
@@ -188,8 +187,7 @@ export class ProjectsController {
       title: updateProjectDto.title || originalData.title,
       cities: updateProjectDto.cities || originalData.cities,
       criteria: updateProjectDto.criteria || originalData.criteria,
-      subCriteria:
-        updateProjectDto.subCriteria || originalData.subCriteria,
+      subCriteria: updateProjectDto.subCriteria || originalData.subCriteria,
       criteriaMatrix:
         updateProjectDto.criteriaMatrix || originalData.criteriaMatrix,
       evaluationValues:
@@ -218,8 +216,7 @@ export class ProjectsController {
         calculationResults.criteriaConsistency.CR.toFixed(5),
       ),
       randomIndex: calculationResults.criteriaConsistency.RI,
-      isConsistent:
-        calculationResults.criteriaConsistency.CR < 0.1,
+      isConsistent: calculationResults.criteriaConsistency.CR < 0.1,
       eigenvector: calculationResults.criteriaPriorities.ids.map(
         (id) => calculationResults.criteriaPriorities.priorities[id] || 0,
       ),
