@@ -1,0 +1,30 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"  // <--- Importante: Tem que ser postgresql
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id                String   @id @default(uuid())
+  title             String
+  cities            Json     // Array de OptionDto: [{ id: string, name: string }]
+  criteria          Json     // Array de CriterionDto: [{ id: string, name: string }]
+  subCriteria       Json?    // Array de SubCriterionDto: [{ id: string, name: string, criterionId: string }]
+  criteriaMatrix    Json     // Record<string, number> - Matriz de comparação de critérios
+  evaluationValues  Json?    // Record<string, number> - Valores de avaliação
+  criteriaConfig    Json?    // Record<string, 'BENEFIT' | 'COST'> - Configuração de critérios
+  criterionFieldValues Json? // Record<string, Record<string, number | string>> - Valores de campos de critérios
+  results           Json     // Resultados dos cálculos AHP
+  status            String   @default("Concluído")
+  alternativesCount Int      // Número de cidades/alternativas
+  criteriaCount     Int      // Número de critérios
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("projects")
+}
