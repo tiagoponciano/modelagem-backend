@@ -1,17 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Habilita validação automática (DTOs)
   app.useGlobalPipes(new ValidationPipe());
 
-  // Habilita CORS (Permite que o Next.js acesse)
   app.enableCors();
 
-  // Roda na porta 3001 (para não brigar com o Next.js 3000)
+  const config = new DocumentBuilder()
+    .setTitle('AHP Backend API')
+    .setDescription('API para análise de projetos usando o método AHP')
+    .setVersion('1.0')
+    .addTag('projects')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
   await app.listen(3001);
 }
 bootstrap();
