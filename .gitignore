@@ -3,6 +3,11 @@
 /node_modules
 /build
 
+# Vercel API routes - compiled files (Vercel compiles TS automatically)
+api/*.js
+api/*.d.ts
+api/*.js.map
+
 # Logs
 logs
 *.log
