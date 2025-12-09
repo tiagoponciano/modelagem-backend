@@ -228,4 +228,50 @@ export class ProjectsController {
       },
     };
   }
+
+  @Post(':id/finalize')
+  @ApiOperation({
+    summary: 'Finalizar projeto - Calcula e salva resultados completos',
+    description:
+      'Este endpoint recalcula todos os resultados AHP e marca o projeto como "Concluído". Use este endpoint ao clicar em "Atualizar e Calcular" na página final.',
+  })
+  @ApiParam({ name: 'id', description: 'ID do projeto' })
+  @ApiBody({ type: UpdateProjectDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Projeto finalizado com sucesso',
+  })
+  @ApiResponse({ status: 404, description: 'Projeto não encontrado' })
+  async finalize(
+    @Param('id') id: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
+    // Força status como "Concluído" ao finalizar
+    const finalizeData = {
+      ...updateProjectDto,
+      status: 'Concluído' as const,
+    };
+
+    // Usa o método update que calcula e salva resultados
+    const project = await this.projectsService.update(id, finalizeData);
+
+    if (!project) {
+      throw new NotFoundException('Projeto não encontrado');
+    }
+
+    // Formata a resposta com originalData
+    return {
+      ...project,
+      originalData: {
+        title: project.title,
+        cities: project.cities,
+        criteria: project.criteria,
+        subCriteria: project.subCriteria,
+        criteriaMatrix: project.criteriaMatrix,
+        evaluationValues: project.evaluationValues,
+        criteriaConfig: project.criteriaConfig,
+        criterionFieldValues: project.criterionFieldValues,
+      },
+    };
+  }
 }

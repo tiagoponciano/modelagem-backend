@@ -14,28 +14,84 @@ export class ProjectsService {
   /**
    * Formata todos os resultados em uma estrutura única para o frontend,
    * incluindo a tabela ponderada já pronta (sem necessidade de cálculos no cliente).
+   * 
+   * Lógica (escalável):
+   * - raw: prioridades de cada cidade para cada critério (normalizadas, cada coluna soma 1)
+   *   - Se há subcritérios: usa cityCriterionScores (já calculado considerando subcritérios)
+   *   - Se não há: calcula prioridades diretas por critério
+   * - weighted: prioridade_critério * prioridade_cidade_por_criterio
+   * - finalScores: soma das linhas da tabela weighted
    */
   formatResults(
     calculationResults: CalculationResult,
     data: CreateProjectDto,
   ) {
     const criteriaWeights = calculationResults.criteriaPriorities.priorities;
-    const cityCriterionRaw = calculationResults.cityCriterionScores;
-
-    const weighted: Record<string, Record<string, number>> = {};
-    Object.keys(cityCriterionRaw).forEach((cityId) => {
-      weighted[cityId] = {};
+    const hasSubCriteria = data.subCriteria && data.subCriteria.length > 0;
+    
+    // Calcula prioridades de cada cidade para cada critério
+    // Se há subcritérios, usa os scores já calculados (que consideram subcritérios)
+    // Se não há, calcula prioridades diretas normalizadas
+    const raw: Record<string, Record<string, number>> = {};
+    
+    if (hasSubCriteria) {
+      // Com subcritérios: usa cityCriterionScores que já considera a lógica de subcritérios
+      // Mas precisa normalizar para que cada coluna some 1
       data.criteria.forEach((criterion) => {
-        const weight = criteriaWeights[criterion.id] || 0;
-        const raw = cityCriterionRaw[cityId]?.[criterion.id] || 0;
-        weighted[cityId][criterion.id] = raw * weight;
+        const columnValues: number[] = [];
+        data.cities.forEach((city) => {
+          const score = calculationResults.cityCriterionScores[city.id]?.[criterion.id] || 0;
+          columnValues.push(score);
+        });
+        
+        // Normaliza a coluna para somar 1
+        const columnSum = columnValues.reduce((sum, val) => sum + val, 0);
+        data.cities.forEach((city, index) => {
+          if (!raw[city.id]) raw[city.id] = {};
+          raw[city.id][criterion.id] = columnSum > 0 
+            ? columnValues[index] / columnSum 
+            : 0;
+        });
       });
+    } else {
+      // Sem subcritérios: calcula prioridades diretas por critério
+      data.cities.forEach((city) => {
+        raw[city.id] = {};
+        data.criteria.forEach((criterion) => {
+          const priorities = this.ahpService.getCriterionCityPriorities(
+            data,
+            criterion.id,
+          );
+          raw[city.id][criterion.id] = priorities.priorities[city.id] || 0;
+        });
+      });
+    }
+
+    // Calcula tabela ponderada: prioridade_critério * prioridade_cidade_por_criterio
+    const weighted: Record<string, Record<string, number>> = {};
+    const finalScores: Record<string, number> = {};
+    
+    data.cities.forEach((city) => {
+      weighted[city.id] = {};
+      let rowSum = 0; // Soma da linha para a decisão final
+      
+      data.criteria.forEach((criterion) => {
+        const criterionWeight = criteriaWeights[criterion.id] || 0;
+        const cityPriority = raw[city.id][criterion.id] || 0;
+        const weightedValue = criterionWeight * cityPriority;
+        weighted[city.id][criterion.id] = weightedValue;
+        rowSum += weightedValue;
+      });
+      
+      // Armazena a soma da linha como score final
+      finalScores[city.id] = rowSum;
     });
 
-    const finalScores = calculationResults.finalScores;
+    // Formata percentuais
     const finalScoresPercent: Record<string, string> = {};
-    Object.keys(finalScores).forEach((cityId) => {
-      finalScoresPercent[cityId] = `${(finalScores[cityId] * 100).toFixed(2)}%`;
+    data.cities.forEach((city) => {
+      const score = finalScores[city.id] || 0;
+      finalScoresPercent[city.id] = `${(score * 100).toFixed(2)}%`;
     });
 
     return {
@@ -57,10 +113,10 @@ export class ProjectsService {
       calculationResults,
       // Tabelas para o frontend:
       table: {
-        raw: cityCriterionRaw, // prioridades por critério (cada coluna soma 1)
-        weighted, // prioridades multiplicadas pelos pesos dos critérios
-        finalScores,
-        finalScoresPercent,
+        raw, // prioridades por critério (cada coluna soma 1) - primeira tabela
+        weighted, // prioridade_critério * prioridade_cidade (segunda tabela) - NÃO incluir _final na tabela
+        finalScores, // soma das linhas (coluna decisão final)
+        finalScoresPercent, // scores em formato percentual
       },
     };
   }
@@ -103,7 +159,7 @@ export class ProjectsService {
       return null;
     }
 
-    // Retorna com originalData formatado
+    // Retorna com originalData formatado e results salvos
     return {
       ...project,
       originalData: {
@@ -116,10 +172,15 @@ export class ProjectsService {
         criteriaConfig: project.criteriaConfig as any,
         criterionFieldValues: project.criterionFieldValues as any,
       },
+      // results já está incluído no spread (...project)
+      // Se results existir, será retornado; se não existir (draft), será null
     };
   }
 
-  async update(id: string, data: Partial<CreateProjectDto>) {
+  async update(
+    id: string,
+    data: Partial<CreateProjectDto> & { status?: 'Em progresso' | 'Concluído' },
+  ) {
     const existingProject = await this.prisma.project.findUnique({
       where: { id },
     });
@@ -174,6 +235,10 @@ export class ProjectsService {
     // Formata resultados
     const results = this.formatResults(calculationResults, mergedData);
 
+    // Determina o status: se foi enviado explicitamente, usa; senão, marca como "Concluído"
+    const finalStatus =
+      data.status || 'Concluído'; // Se não enviar status, assume "Concluído" ao recalcular
+
     return this.prisma.project.update({
       where: { id },
       data: {
@@ -185,9 +250,10 @@ export class ProjectsService {
         evaluationValues: mergedData.evaluationValues as any,
         criteriaConfig: mergedData.criteriaConfig as any,
         criterionFieldValues: mergedData.criterionFieldValues as any,
-        results: results as any,
+        results: results as any, // Salva os resultados calculados
         alternativesCount: mergedData.cities.length,
         criteriaCount: mergedData.criteria.length,
+        status: finalStatus, // Usa o status enviado ou "Concluído" por padrão
       },
     });
   }
@@ -203,6 +269,7 @@ export class ProjectsService {
   /**
    * Salva dados parciais (draft) sem recalcular resultados AHP
    * Usado para auto-save durante o preenchimento do formulário
+   * SEMPRE mantém status como "Em progresso"
    */
   async saveDraft(id: string, data: Partial<CreateProjectDto>) {
     const existingProject = await this.prisma.project.findUnique({
@@ -240,6 +307,7 @@ export class ProjectsService {
 
     // Atualiza apenas os dados, sem recalcular resultados
     // Mantém os resultados antigos ou vazios se ainda não foram calculados
+    // SEMPRE mantém status como "Em progresso" (não finaliza)
     return this.prisma.project.update({
       where: { id },
       data: {
@@ -253,7 +321,8 @@ export class ProjectsService {
         criterionFieldValues: mergedData.criterionFieldValues as any,
         alternativesCount: mergedData.cities?.length ?? existingProject.alternativesCount,
         criteriaCount: mergedData.criteria?.length ?? existingProject.criteriaCount,
-        status: 'Em progresso', // Marca como em progresso quando salva parcialmente
+        status: 'Em progresso', // SEMPRE mantém como "Em progresso" em drafts
+        // Não atualiza results - mantém os antigos ou null
       },
     });
   }
