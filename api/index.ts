@@ -22,8 +22,13 @@ async function bootstrap() {
     },
   );
 
+  // Configurar CORS antes de outras configurações
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+  
   app.useGlobalPipes(new ValidationPipe());
-  app.enableCors();
 
   const config = new DocumentBuilder()
     .setTitle('AHP Backend API')
@@ -33,7 +38,18 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  
+  // Configurar Swagger com opções para Vercel
+  SwaggerModule.setup('docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      tryItOutEnabled: true,
+      filter: true,
+      showRequestDuration: true,
+    },
+    customSiteTitle: 'AHP Backend API',
+    customCss: '.swagger-ui .topbar { display: none }',
+  });
 
   await app.init();
   cachedApp = expressApp;
